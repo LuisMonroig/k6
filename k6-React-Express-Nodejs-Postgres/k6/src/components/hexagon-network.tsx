@@ -1,69 +1,117 @@
+
 "use client"
 import { useState, useRef, useEffect } from "react"
+import { UndirectedGraph } from "graphology"
 import activateSound from "../assets/mp3files/activate.mp3"
-// import deactivateSound from "../assets/mp3files/deactivate.mp3"
 
 export default function HexagonNetwork() {
-  // Track claimed edges and which player claimed them (1 or 2)
   const [activeEdges, setActiveEdges] = useState<Record<string, number>>({})
-  const [currentPlayer, setCurrentPlayer] = useState(1) // ✅ Player state for reactivity
+  const [currentPlayer, setCurrentPlayer] = useState(1)
+  const [winner,setWinner] = useState<string>("");
 
-  const activateAudioRef = useRef<HTMLAudioElement>(null)
+  const activateAudioRef = useRef<HTMLAudioElement | null>(null)
+  const player1GraphRef = useRef(new UndirectedGraph())
+  const player2GraphRef = useRef(new UndirectedGraph())
 
-  useEffect(() => {
-    activateAudioRef.current = new Audio(activateSound)
-  }, [])
-
-  // Hexagon layout configuration
-  const radius = 120
+  const radius = 180
   const center = { x: 200, y: 200 }
 
-  // Generate 6 nodes positioned in a hexagon
   const nodes = Array.from({ length: 6 }).map((_, i) => {
     const angle = (Math.PI / 3) * i - Math.PI / 2
     return {
-      id: i,
+      id: i.toString(),
       x: center.x + radius * Math.cos(angle),
       y: center.y + radius * Math.sin(angle),
     }
   })
 
-  // Generate edges for a complete graph between nodes
   const edges = []
   for (let i = 0; i < nodes.length; i++) {
     for (let j = i + 1; j < nodes.length; j++) {
       edges.push({
         id: `${i}-${j}`,
-        source: i,
-        target: j,
+        source: i.toString(),
+        target: j.toString(),
       })
     }
   }
 
-  // Handle edge click — claim edge and switch player
-  const handleEdgeClick = (edgeId: string) => {
-    setActiveEdges((prev) => {
-      if (prev[edgeId] !== undefined) return prev // already claimed
-
-      // Play sound
-      if (activateAudioRef.current) {
-        activateAudioRef.current.currentTime = 0
-        activateAudioRef.current.play().catch((err) => {
-          console.warn("Audio play failed:", err)
-        })
+  useEffect(() => {
+    activateAudioRef.current = new Audio(activateSound)
+    
+    nodes.forEach((node) => {
+      if (!player1GraphRef.current.hasNode(node.id)) {
+        player1GraphRef.current.addNode(node.id)
       }
-
-      // Claim the edge
-      const updatedEdges = {
-        ...prev,
-        [edgeId]: currentPlayer,
+      if (!player2GraphRef.current.hasNode(node.id)) {
+        player2GraphRef.current.addNode(node.id)
       }
-
-      // Switch to next player
-      setCurrentPlayer(currentPlayer === 1 ? 2 : 1)
-
-      return updatedEdges
     })
+  }, [])
+  
+  const handleEdgeClick = (edgeId: string) => {
+    // it there is a winner then this function will do nothing
+    if (winner === ""){
+      setActiveEdges((prev) => {
+        if (prev[edgeId] !== undefined) return prev
+
+        if (activateAudioRef.current) {
+          activateAudioRef.current.currentTime = 0
+          activateAudioRef.current.play().catch(console.warn)
+        }
+
+        const updatedEdges = {
+          ...prev,
+          [edgeId]: currentPlayer,
+        }
+
+        const [source, target] = edgeId.split('-')
+
+        if (currentPlayer === 1) {
+          if (!player1GraphRef.current.hasEdge(source, target)) {
+            player1GraphRef.current.addEdge(source, target, { id: edgeId });
+          }
+          if (hasCycleOfLengthN(player1GraphRef.current, 3)) {
+            setWinner("2");
+            //setWinner("Player 1 formed a 3-length cycle!, Player 2 Wins!");
+            console.log(winner);
+          }
+        } else {
+          if (!player2GraphRef.current.hasEdge(source, target)) {
+            player2GraphRef.current.addEdge(source, target, { id: edgeId });
+          }
+          if (hasCycleOfLengthN(player2GraphRef.current, 3)) {
+            setWinner("1");
+            // setWinner("Player 2 formed a 3-length cycle!, Player 1 Wins!");
+            console.log(winner);
+          }
+        }
+        
+        setCurrentPlayer(currentPlayer === 1 ? 2 : 1)
+        return updatedEdges
+      })
+    }
+  }
+
+  function hasCycleOfLengthN(graph: UndirectedGraph, n: number): boolean {
+    function dfs(node: string, start: string, depth: number, path: string[]): boolean {
+      if (depth === 0) return graph.hasEdge(node, start)
+
+      for (const neighbor of graph.neighbors(node)) {
+        if (!path.includes(neighbor)) {
+          path.push(neighbor)
+          if (dfs(neighbor, start, depth - 1, path)) return true
+          path.pop()
+        }
+      }
+      return false
+    }
+
+    for (const node of graph.nodes()) {
+      if (dfs(node, node, n - 1, [node])) return true
+    }
+
+    return false
   }
 
   return (
@@ -71,17 +119,13 @@ export default function HexagonNetwork() {
       <div className="bg-white p-8 rounded-xl shadow-lg">
         <h1 className="text-2xl font-bold mb-6 text-center">Interactive Hexagon Network</h1>
         <svg width="400" height="400" className="mx-auto">
-          {/* Render edges */}
           {edges.map((edge) => {
-            const source = nodes[edge.source]
-            const target = nodes[edge.target]
-            const midX = (source.x + target.x) / 2
-            const midY = (source.y + target.y) / 2
+            const source = nodes.find((n) => n.id === edge.source)!
+            const target = nodes.find((n) => n.id === edge.target)!
             const claimedBy = activeEdges[edge.id]
 
             return (
               <g key={edge.id}>
-                {/* Visible edge line */}
                 <line
                   x1={source.x}
                   y1={source.y}
@@ -89,16 +133,13 @@ export default function HexagonNetwork() {
                   y2={target.y}
                   stroke={
                     claimedBy === 1
-                      ? "#3b82f6" // Blue
+                      ? "#3b82f6"
                       : claimedBy === 2
-                      ? "#ef4444" // Red
-                      : "#94a3b8" // Gray
+                      ? "#ef4444"
+                      : "#94a3b8"
                   }
                   strokeWidth={claimedBy ? 4 : 2}
-                  className="transition-all duration-300"
                 />
-
-                {/* Wider invisible line for easier clicking */}
                 <line
                   x1={source.x}
                   y1={source.y}
@@ -109,26 +150,10 @@ export default function HexagonNetwork() {
                   className="cursor-pointer"
                   onClick={() => handleEdgeClick(edge.id)}
                 />
-
-                {/* Label if edge is claimed
-                {claimedBy && (
-                  <text
-                    x={midX}
-                    y={midY}
-                    textAnchor="middle"
-                    dy="-10"
-                    className={`text-xs font-medium ${
-                      claimedBy === 1 ? "fill-blue-600" : "fill-red-600"
-                    }`}
-                  >
-                    {`Edge ${edge.id} - Player ${claimedBy}`}
-                  </text>
-                )} */}
               </g>
             )
           })}
 
-          {/* Render nodes */}
           {nodes.map((node) => (
             <g key={node.id}>
               <circle
@@ -144,7 +169,7 @@ export default function HexagonNetwork() {
                 dy="5"
                 className="text-white font-bold text-sm"
               >
-                {node.id + 1}
+                {parseInt(node.id) + 1}
               </text>
             </g>
           ))}
@@ -155,16 +180,19 @@ export default function HexagonNetwork() {
           <p className="mt-2 text-sm">
             Claimed edges: {Object.entries(activeEdges).length}/{edges.length}
           </p>
-          <p className="mt-1 font-semibold">
+          { winner === "" && <p className="mt-1 font-semibold">
             Current Player:{" "}
-            <span
-              className={
-                currentPlayer === 1 ? "text-blue-600" : "text-red-600"
-              }
-            >
+            <span className={currentPlayer === 1 ? "text-blue-600" : "text-red-600"}>
               Player {currentPlayer}
             </span>
-          </p>
+          </p>}
+
+          { winner !== "" && <p className="mt-1 font-semibold">
+            <span className={"text-black-600"}>
+              Player {winner} Wins!
+            </span>
+          </p>}
+
         </div>
       </div>
     </div>
