@@ -14,7 +14,7 @@ const SvgNodeGroup = ({ node }: any) => {
             dy="5"
             className="text-white font-bold text-sm"
         >
-            {parseInt(node.id) + 1}
+            {/* to add numbers on top of the node, uncomment this line {parseInt(node.id) + 1} */} 
         </text>
         </g>
     )
