@@ -1,11 +1,11 @@
 "use client"
 
-import HexagonNetwork from "../components/hexagon-network"
+import K6Plot from "../components/K6Plot"
 
 export default function Page() {
   return (
     <div>
-      <HexagonNetwork />
+      <K6Plot />
     </div>
   )
 }

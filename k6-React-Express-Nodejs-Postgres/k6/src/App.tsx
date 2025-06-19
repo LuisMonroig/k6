@@ -1,16 +1,15 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
 import './App.css'
 import Page from "./pages/k6Page"
 
 function App() {
   return (
     <>
-    <div className='text-5xl'> K6</div>
-
-    <Page></Page>
-
+      <div className='text-5xl'> K6</div>
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="bg-white p-8 rounded-xl shadow-lg">
+          <Page></Page>
+        </div>
+      </div>    
     </>
   )
 }
