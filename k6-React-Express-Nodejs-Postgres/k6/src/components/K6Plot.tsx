@@ -246,7 +246,7 @@ export default function K6Plot() {
       />
 
       {/* conditionally render play again button when there is a winner */}
-      {winner && <PlayAgainButton onClick={handleReset} />} //TODO: decouple GameStatus and PlayAgain button 
+      {winner && <PlayAgainButton onClick={handleReset} />} {/*TODO: decouple GameStatus and PlayAgain button */}
 
       <svg width="400" height="400" className="mx-auto">
         {/* plotting Edges */}
